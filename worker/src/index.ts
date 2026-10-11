@@ -1,12 +1,15 @@
 import { agentsMiddleware } from 'hono-agents'
 import { cors } from 'hono/cors'
-import { etag } from 'hono/etag'
+import { bodyLimit } from 'hono/body-limit'
+import { features } from './com/features'
+import { memberRoutes } from './biz/mbr/routes'
+import { paymentRoutes, commerceAdminRoutes, webhookRoutes } from './biz/pay/routes'
 import { Hono } from 'hono'
 import { serveBoundAsset } from './com/assets'
 import type { AppBindings } from './com/bindings'
 import { OpsAgent } from './biz/agt/ops-agent'
 import { agentRoutes } from './biz/agt/routes'
-import { applySecurityHeaders, enforceAdminAccess } from './com/security'
+import { applySecurityHeaders, enforceAdminAccess, enforceMutationOrigin } from './com/security'
 import { requireRole } from './com/rbac'
 import { aiRoutes } from './biz/aid/routes'
 import { authRoutes } from './biz/aut/routes'
@@ -30,25 +33,36 @@ export function createApp() {
   const app = new Hono<{ Bindings: AppBindings }>()
 
   app.use('*', applySecurityHeaders)
+  app.use('/api/*', bodyLimit({ maxSize: 512 * 1024 }))
+  app.use('*', enforceMutationOrigin)
   app.use('*', enforceAdminAccess)
+  app.use('/agents/*', requireRole('editor'))
+  app.use('*', async (c, next) => {
+    const flags = features(c.env)
+    const modules = [['/api/admin/ai', flags.ai], ['/api/admin/agt', flags.agents], ['/agents', flags.agents], ['/api/admin/vec', flags.vector], ['/api/admin/ext', flags.examples]] as const
+    if (modules.some(([prefix, enabled]) => !enabled && (c.req.path === prefix || c.req.path.startsWith(prefix + '/')))) return c.json({ message: 'Module disabled' }, 404)
+    await next()
+  })
   app.use('/agents/*', agentsMiddleware())
   app.use('/api/*', cors({
-    origin: (origin) => {
+    origin: (origin, c) => {
       const allowed = [
-        'https://octoworkers.com',
-        'https://admin.octoworkers.com',
-        'https://app.octoworkers.com',
+        `https://${c.env.APP_DOMAIN}`,
+        `https://${c.env.ADMIN_DOMAIN}`,
+        `https://${c.env.SAAS_DOMAIN}`,
       ]
       if (!origin) return origin
       if (allowed.includes(origin)) return origin
-      if (origin.startsWith('http://localhost:')) return origin
+      if (c.env.ENV_NAME === 'development' && origin.startsWith('http://localhost:')) return origin
       return undefined
     },
     credentials: true,
   }))
-  app.use('/api/*', etag())
+  app.use('/api/*', async (c, next) => { await next(); c.header('Cache-Control', 'no-store') })
 
   // H-3: Rate Limiting (로그인, 리드, 이메일, AI)
+  app.use('/api/members/kakao', rateLimit({ maxRequests: 20, windowSeconds: 60 }))
+  app.use('/api/payments/checkout', rateLimit({ maxRequests: 10, windowSeconds: 60 }))
   app.use('/api/auth/login', rateLimit({ maxRequests: 10, windowSeconds: 60 }))
   app.use('/api/auth/github', rateLimit({ maxRequests: 10, windowSeconds: 60 }))
   app.use('/api/public/leads', rateLimit({ maxRequests: 5, windowSeconds: 60 }))
@@ -91,6 +105,10 @@ export function createApp() {
   })
 
   // 공개 API (인증/역할 불필요)
+  app.get('/api/public/features', c => c.json(features(c.env)))
+  app.route('/api/members', memberRoutes)
+  app.route('/api/payments', paymentRoutes)
+  app.route('/api/webhooks', webhookRoutes)
   app.route('/api/health', healthRoutes)
   app.route('/api/auth', authRoutes)
   app.route('/api/public', publicRoutes)
@@ -114,6 +132,8 @@ export function createApp() {
   // M-4: role 기반 권한 — admin (사용자 관리)
   app.use('/api/admin/users/*', requireRole('admin'))
 
+  app.use('/api/admin/commerce/*', requireRole('admin'))
+  app.route('/api/admin/commerce', commerceAdminRoutes)
   app.route('/api/admin/dashboard', dashboardRoutes)
   app.route('/api/admin/settings', settingsRoutes)
   app.route('/api/admin/leads', leadsRoutes)
@@ -128,6 +148,7 @@ export function createApp() {
   app.route('/api/admin/users', userRoutes)
   app.route('/api/admin/logs', logRoutes)
 
+  app.all('/api/*', c => c.json({ message: 'API not found' }, 404))
   app.all('*', async (c) => serveBoundAsset(c))
 
   return app
@@ -136,4 +157,13 @@ export function createApp() {
 const app = createApp()
 
 export { OpsAgent }
-export default app
+export default {
+  fetch: app.fetch,
+  async scheduled(_event: unknown, env: AppBindings) {
+    const now = Math.floor(Date.now() / 1000)
+    await env.DB.prepare('DELETE FROM auth_sessions WHERE expires_at <= ?').bind(now).run()
+    await env.DB.prepare('DELETE FROM oauth_states WHERE expires_at <= ?').bind(now).run()
+    await env.DB.prepare('DELETE FROM rate_limits WHERE expires_at <= ?').bind(now).run()
+    await env.DB.prepare("DELETE FROM api_logs WHERE created_at < datetime('now', '-30 days')").run()
+  },
+}

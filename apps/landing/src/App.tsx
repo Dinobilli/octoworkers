@@ -1,3 +1,6 @@
+import { useEffect, useState } from 'react'
+import type { FeatureFlags } from '@octoworkers/com'
+import { apiFetch } from './com/api/client'
 import { Section } from './com/ui/Section'
 import { FeatureGrid } from './biz/mkt/components/FeatureGrid'
 import { HeroPanel } from './biz/mkt/components/HeroPanel'
@@ -13,6 +16,8 @@ import { adminUrl, pageUrl } from './com/url'
 const GITHUB_URL = 'https://github.com/johunsang/octoworkers'
 
 export function App() {
+  const [flags, setFlags] = useState<FeatureFlags | null>(null)
+  useEffect(() => { apiFetch<FeatureFlags>('/api/public/features').then(setFlags).catch(() => {}) }, [])
   const { data, loading } = usePublicBootstrap()
 
   const metrics = [
@@ -30,6 +35,7 @@ export function App() {
           <a href="#get-started">Quick Start</a>
           <a href="#docs">Docs</a>
           <a href="#pricing">Pricing</a>
+          {flags?.kakao && <a href="/account">내 계정</a>}
           <a href={adminUrl()} className="nav-cta">Admin Console</a>
         </div>
       </nav>

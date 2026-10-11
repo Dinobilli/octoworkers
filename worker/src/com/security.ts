@@ -1,63 +1,23 @@
 import type { Context } from 'hono'
 import type { AppBindings } from './bindings'
-import { readAdminSession } from '../biz/aut/service'
-import { normalizeHost } from './env'
+import { developmentBypass, getAdminIdentity } from './admin-identity'
 import { jsonError } from './http'
 
-const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1'])
-
-function isProtectedAdminRequest(requestUrl: string) {
-  const url = new URL(requestUrl)
-  return url.pathname.startsWith('/api/admin') || url.pathname.startsWith('/agents/')
-}
-
-function allowedAdminEmails(env: AppBindings) {
-  return (env.ADMIN_ALLOWED_EMAILS ?? '')
-    .split(',')
-    .map((email) => email.trim().toLowerCase())
-    .filter(Boolean)
-}
-
 export async function enforceAdminAccess(c: Context<{ Bindings: AppBindings }>, next: () => Promise<void>) {
-  const url = new URL(c.req.url)
-  const host = normalizeHost(url.hostname)
-  const mode = c.env.ADMIN_ACCESS_MODE ?? 'hybrid'
+  const path = new URL(c.req.url).pathname
+  if (!/^\/(api\/admin|agents)(\/|$)/.test(path) || developmentBypass(c)) { await next(); return }
+  if (!(await getAdminIdentity(c))) { c.res = jsonError(c, 401, 'Authentication required'); return }
+  await next()
+}
 
-  if (!isProtectedAdminRequest(c.req.url) || LOCAL_HOSTS.has(host) || mode === 'off') {
-    await next()
-    return
+// Same-origin cookie mutations must never be accepted from a third-party page.
+export async function enforceMutationOrigin(c: Context, next: () => Promise<void>) {
+  if ((!c.req.path.startsWith('/agents/') && ['GET', 'HEAD', 'OPTIONS'].includes(c.req.method)) || c.req.path.startsWith('/api/webhooks/')) { await next(); return }
+  const origin = c.req.header('Origin')
+  if ((origin && origin !== new URL(c.req.url).origin) || c.req.header('Sec-Fetch-Site') === 'cross-site') {
+    c.res = jsonError(c, 403, 'Cross-origin mutation denied'); return
   }
-
-  const authenticatedEmail = c.req.header('cf-access-authenticated-user-email')?.toLowerCase()
-  const session = await readAdminSession(c)
-  const sessionEmail = session?.email?.toLowerCase()
-  const allowedEmails = allowedAdminEmails(c.env)
-
-  if (mode === 'cloudflare-access' || mode === 'hybrid') {
-    if (authenticatedEmail) {
-      if (allowedEmails.length === 0 || allowedEmails.includes(authenticatedEmail)) {
-        await next()
-        return
-      }
-
-      c.res = jsonError(c, 403, 'Authenticated user is not allowed to access the admin surface.')
-      return
-    }
-  }
-
-  if (mode === 'session' || mode === 'hybrid') {
-    if (sessionEmail) {
-      if (allowedEmails.length === 0 || allowedEmails.includes(sessionEmail)) {
-        await next()
-        return
-      }
-
-      c.res = jsonError(c, 403, 'Signed-in user is not allowed to access the admin surface.')
-      return
-    }
-  }
-
-  c.res = jsonError(c, 401, 'Authentication is required for the admin API.')
+  await next()
 }
 
 export async function applySecurityHeaders(c: Context, next: () => Promise<void>) {

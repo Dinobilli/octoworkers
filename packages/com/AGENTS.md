@@ -24,3 +24,5 @@
 - worker와 apps 양쪽에서 `@octoworkers/com`으로 import
 - 타입 변경 시 양쪽 소비자(worker, landing, admin) 모두 확인
 - `pnpm check`로 전체 타입 호환성 검증
+
+새 회원/결제 설정, 보안 정책, CLI 및 staging 동작은 루트 `docs/05-boilerplate-upgrade.md`와 `AGENTS.md`의 1.1 변경 사항을 따른다.

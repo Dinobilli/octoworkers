@@ -15,12 +15,23 @@ Cloudflare 중심으로 바로 시작할 수 있는 SaaS 보일러플레이트�
 - `Realtime`: WebSocket 에코 예제
 - `Agents`: Durable Object 기반 운영 에이전트 예제
 
+## 1.1: 재사용 가능한 회원·결제 기반
+
+카카오 일반 회원 로그인과 그로블 결제창/서명 웹훅을 선택적으로 켤 수 있습니다. 관리자 인증·권한, 첫 관리자 생성, CLI 패키징, 독립 staging 설정을 함께 보완했습니다. [새 프로젝트/업그레이드 가이드](docs/05-boilerplate-upgrade.md)를 기준으로 설정하세요. 실제 공급자 키나 상품은 포함하지 않습니다.
+
+- 일반 회원: `/account`, 카카오 가입/로그아웃, 자기 주문 조회
+- 운영자: 비밀번호/GitHub/검증된 Cloudflare Access, DB 역할 관리
+- 결제: 관리자 상품 연결, 그로블 checkout 참조값, 중복/역순/환불/구독 이벤트 처리
+- CLI: `pnpm build:cli` 후 `node cli/dist/index.mjs ../my-service --kakao --groble`
+
 ## 빠른 시작
 
 ```bash
-pnpm install
+pnpm install --frozen-lockfile
 cp worker/.dev.vars.example worker/.dev.vars
+# .dev.vars의 관리자 이메일과 비밀번호를 변경합니다.
 pnpm --filter @octoworkers/worker db:migrate:local
+pnpm admin:bootstrap --email owner@example.com
 pnpm dev
 ```
 
@@ -87,9 +98,9 @@ worker/
 ## 포함 기능
 
 - Hono 기반 API 라우팅
-- Hono `etag` 적용
+- 인증 API `Cache-Control: no-store` 적용
 - 보안 헤더 적용
-- 세션 로그인 쿠키 + JWT
+- 폐기 가능한 서버 세션 + httpOnly 쿠키
 - Cloudflare Access와 병행 가능한 admin 보호 모드
 - D1 기반 settings/leads/media 저장
 - Cloudflare Images direct upload + refresh/update/delete
@@ -133,6 +144,6 @@ pnpm deploy:prod
 
 - `worker/wrangler.jsonc`에는 실제 도메인, D1 ID, Images delivery hash를 넣어야 합니다.
 - `Workers AI`, `Vectorize`, `Agents`는 Cloudflare 원격 리소스를 사용하므로 `pnpm dev:remote` 흐름이 특히 중요합니다.
-- `ADMIN_LOGIN_PASSWORD`, `ADMIN_JWT_SECRET`, `AI_PROVIDER_API_KEY`, `CLOUDFLARE_IMAGES_API_TOKEN`은 secret으로 넣는 전제를 잡았습니다.
+- `ADMIN_LOGIN_PASSWORD`, `AI_PROVIDER_API_KEY`, `CLOUDFLARE_IMAGES_API_TOKEN`은 secret으로 넣는 전제를 잡았습니다.
 - `R2`는 기본값으로 주석 처리되어 있습니다. 버킷명을 확정한 뒤 활성화하면 됩니다.
 - `KV`는 예제 바인딩이 포함되어 있고, `ext` API/UI에서 바로 확인할 수 있습니다.

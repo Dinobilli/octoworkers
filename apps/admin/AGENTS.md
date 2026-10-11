@@ -20,9 +20,11 @@ React 19 + Vite SWC 기반 인증 대시보드.
 ## 규칙
 
 - API 호출은 반드시 `apiFetch` 사용
-- 인증 필요: JWT 쿠키 세션 또는 Cloudflare Access
+- 인증 필요: DB 쿠키 세션 또는 검증된 Cloudflare Access JWT
 - 새 컴포넌트: `biz/{모듈}/components/` 하위에 배치
 - 새 훅: `biz/{모듈}/hooks/use*.ts`
 - 공유 타입은 `@octoworkers/com` 사용
 - Vite dev proxy: `/api` → `http://127.0.0.1:8787`
 - 빌드 결과물: `worker/public/admin/`으로 출력
+
+새 회원/결제 설정, 보안 정책, CLI 및 staging 동작은 루트 `docs/05-boilerplate-upgrade.md`와 `AGENTS.md`의 1.1 변경 사항을 따른다.

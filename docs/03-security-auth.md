@@ -1,107 +1,24 @@
-# 보안 / 로그인 / Access
+# 인증과 권한
 
-## 현재 보안 구성
+## 관리자
 
-포함된 항목:
+`ADMIN_ACCESS_MODE`는 `session`(기본), `cloudflare-access`, `hybrid`를 지원합니다. 모든 방식은 활성 `admin_users` 계정과 연결되어야 합니다. DB에 등록되지 않은 계정은 허용하지 않습니다.
 
-- 보안 헤더
-- admin API 인증 필요
-- 세션 로그인
-- JWT 기반 httpOnly 쿠키
-- `sameSite=Strict`
-- Cloudflare Access 병행 가능
-- 허용 이메일 목록 검사
-- staging / production 분리
+- 비밀번호 로그인: `ADMIN_LOGIN_EMAIL`, secret `ADMIN_LOGIN_PASSWORD`를 사용합니다. 첫 관리자 생성은 `pnpm admin:bootstrap --email ...`로 명시적으로 수행합니다.
+- GitHub 로그인: client ID/secret 및 `GITHUB_ALLOWED_USERS`를 설정합니다. 공급자에서 검증된 기본 이메일이 관리자 DB와 일치해야 합니다. 비어 있는 허용 목록은 아무도 허용하지 않습니다.
+- Access: `CF_ACCESS_TEAM_DOMAIN=your-team.cloudflareaccess.com`, `CF_ACCESS_AUD`를 설정합니다. `Cf-Access-Jwt-Assertion`의 서명·issuer·audience·만료를 검증합니다. 이메일 헤더만 보내는 요청은 인정하지 않습니다.
+- `ADMIN_ALLOWED_EMAILS`는 선택적인 추가 제한입니다. 빈 값은 DB 역할을 기준으로 판단하며, 값을 넣으면 초대한 관리자도 해당 목록에 있어야 합니다.
 
-## 인증 모드
+`super_admin > admin > editor > viewer` 순서입니다. 일반 admin은 최고 관리자/다른 admin 계정을 생성·변경하지 못합니다. 마지막 활성 최고 관리자의 삭제·비활성화·강등은 DB 트리거로 차단합니다. 자신의 계정 삭제/비활성화도 API에서 차단합니다. Agents 연결도 같은 활성 계정 검사와 editor 이상의 역할을 요구합니다.
 
-설정 키:
+## 세션과 개발 모드
 
-- `ADMIN_ACCESS_MODE`
+DB에는 임의 세션 토큰의 SHA-256 해시만 저장합니다. 관리자 12시간, 회원 7일 후 만료합니다. 쿠키는 httpOnly, SameSite=Lax, HTTPS에서 Secure 및 __Host prefix를 사용합니다. OAuth 콜백에 필요한 Lax 정책과 함께 변경 API에는 Origin/Sec-Fetch-Site 검사를 적용합니다. 클라이언트는 각 사이트와 같은 origin의 API를 호출합니다.
 
-지원 모드:
+로그아웃은 서버 세션을 폐기합니다. 관리자 역할/활성화 변경·삭제 시 세션도 폐기됩니다. `ADMIN_ACCESS_MODE=off`는 명시적인 development/test 환경의 localhost/127.0.0.1에서만 동작합니다. 운영에서는 off나 로컬 호스트 이름만으로 접근을 우회할 수 없습니다.
 
-- `off`: 로컬 개발용
-- `session`: 로그인 세션만 사용
-- `cloudflare-access`: Access 헤더만 사용
-- `hybrid`: Access 또는 세션 둘 다 허용
+## 일반 회원과 결제
 
-권장값:
+카카오 회원은 `members` 테이블과 별도 쿠키를 사용합니다. 이메일 자동 계정 연결, 자동 관리자 승격은 없습니다. 결제 상태는 서명 검증된 그로블 웹훅으로만 판단합니다. 설정과 API는 [프로젝트 가이드](05-boilerplate-upgrade.md)를 참고하세요.
 
-- 로컬: `off`
-- staging: `hybrid`
-- production: `hybrid` 또는 `cloudflare-access`
-
-## 로그인 API
-
-공개 인증 API:
-
-- `GET /api/auth/me`
-- `POST /api/auth/login`
-- `POST /api/auth/logout`
-
-필수 secret:
-
-- `ADMIN_LOGIN_PASSWORD`
-- `ADMIN_JWT_SECRET`
-
-일반 var:
-
-- `ADMIN_LOGIN_EMAIL`
-- `ADMIN_ALLOWED_EMAILS`
-
-## 세션 처리 방식
-
-로그인 성공 시:
-
-1. JWT 생성
-2. `__Host-octoworkers_admin` 쿠키 발급
-3. admin API 접근 시 쿠키 검증
-
-## Cloudflare Access 병행
-
-이 프로젝트는 `cf-access-authenticated-user-email` 헤더를 읽습니다.
-
-따라서:
-
-- Access 정책으로 1차 제한
-- 앱 세션 로그인으로 2차 제어
-
-구성도 가능합니다.
-
-## 허용 이메일
-
-예:
-
-```jsonc
-"ADMIN_ALLOWED_EMAILS": "founder@example.com,ops@example.com"
-```
-
-세션 로그인과 Access 모두 이 목록을 통과해야 합니다.
-
-## 보안 헤더
-
-주요 헤더:
-
-- `Content-Security-Policy`
-- `Referrer-Policy`
-- `X-Content-Type-Options`
-- `X-Frame-Options`
-- `Permissions-Policy`
-- `Cross-Origin-Opener-Policy`
-- `Cross-Origin-Resource-Policy`
-- `Strict-Transport-Security`
-
-WebSocket 예제 라우트는 업그레이드 충돌을 피하기 위해 헤더 처리에서 예외 처리했습니다.
-
-## 추가 권장사항
-
-운영 전 권장:
-
-- `ADMIN_ACCESS_MODE=cloudflare-access` 또는 `hybrid`
-- Access 앱 생성
-- GitHub branch protection 활성화
-- Cloudflare WAF 룰 추가
-- 로그인 비밀번호를 충분히 길게 설정
-- AI provider key와 Images token 분리
-- R2/KV는 최소 권한 토큰 사용
+요청 제한은 D1의 원자적 카운터를 사용합니다. 저장소 오류 시 보호 대상 요청을 통과시키지 않습니다. 보안 헤더와 인증 API no-store를 적용하고, 외부 서비스 시크릿은 Worker secrets 및 로컬 ignored `.dev.vars`로 관리합니다.

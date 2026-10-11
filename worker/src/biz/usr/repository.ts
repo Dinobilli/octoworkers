@@ -48,9 +48,7 @@ export async function updateLastLogin(db: D1Database, email: string, githubLogin
   if (user) {
     await db.prepare('UPDATE admin_users SET last_login_at = ?, github_login = COALESCE(?, github_login), avatar_url = COALESCE(?, avatar_url), updated_at = ? WHERE email = ?')
       .bind(now, githubLogin ?? null, avatarUrl ?? null, now, email).run()
-  } else {
-    await db.prepare('INSERT INTO admin_users (email, name, role, github_login, avatar_url, last_login_at, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)')
-      .bind(email, githubLogin ?? email, 'viewer', githubLogin ?? null, avatarUrl ?? null, now, now, now).run()
+
   }
 }
 

@@ -1,34 +1,19 @@
 import type { Context } from 'hono'
 import type { AppBindings } from './bindings'
-import { jsonError } from './http'
-
-type RateLimitOptions = {
-  maxRequests: number
-  windowSeconds: number
-}
-
-export function rateLimit(opts: RateLimitOptions) {
+import { developmentBypass } from './admin-identity'
+import { hashToken } from './session'
+export function rateLimit(opts: { maxRequests: number; windowSeconds: number }) {
   return async (c: Context<{ Bindings: AppBindings }>, next: () => Promise<void>) => {
-    const ip = c.req.header('cf-connecting-ip') ?? c.req.header('x-forwarded-for') ?? 'unknown'
-    const path = new URL(c.req.url).pathname
-    const key = `rl:${ip}:${path}`
-
-    if (!c.env.APP_KV) { await next(); return }
-
+    if (developmentBypass(c)) { await next(); return }
+    const window = Math.floor(Date.now() / 1000 / opts.windowSeconds)
+    const key = await hashToken(`${c.req.header('cf-connecting-ip') ?? 'local'}:${c.req.path}:${window}`)
     try {
-      const current = await c.env.APP_KV.get(key)
-      const count = current ? Number(current) : 0
-
-      if (count >= opts.maxRequests) {
-        c.res = jsonError(c, 429, 'Too many requests. Please try again later.')
-        return
-      }
-
-      await c.env.APP_KV.put(key, String(count + 1), { expirationTtl: opts.windowSeconds })
-    } catch {
-      // KV 오류 시 요청 통과 (가용성 우선)
-    }
-
+      const row = await c.env.DB.prepare(`INSERT INTO rate_limits (key, count, expires_at) VALUES (?, 1, ?)
+        ON CONFLICT(key) DO UPDATE SET count = count + 1 RETURNING count`)
+        .bind(key, (window + 1) * opts.windowSeconds).first<{ count: number }>()
+      if (!row) return c.json({ message: 'Rate limiter unavailable' }, 503)
+      if (row.count > opts.maxRequests) { c.header('Retry-After', String(opts.windowSeconds)); return c.json({ message: 'Too many requests' }, 429) }
+    } catch { return c.json({ message: 'Rate limiter unavailable' }, 503) }
     await next()
   }
 }

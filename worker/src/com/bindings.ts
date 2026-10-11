@@ -6,6 +6,7 @@ export interface D1PreparedStatementLike {
 }
 
 export interface D1DatabaseLike {
+  batch?(statements: D1PreparedStatementLike[]): Promise<unknown[]>
   prepare(query: string): D1PreparedStatementLike
 }
 
@@ -69,6 +70,19 @@ export type AppBindings = {
   APP_KV: KVNamespaceLike
   MEDIA_R2?: R2BucketLike
   ENV_NAME?: string
+  CF_ACCESS_TEAM_DOMAIN?: string
+  CF_ACCESS_AUD?: string
+  ENABLE_AI?: string
+  ENABLE_AGENTS?: string
+  ENABLE_VECTOR?: string
+  ENABLE_EXAMPLES?: string
+  ENABLE_KAKAO?: string
+  ENABLE_GROBLE?: string
+  KAKAO_REST_API_KEY?: string
+  KAKAO_CLIENT_SECRET?: string
+  KAKAO_REDIRECT_URI?: string
+  GROBLE_WEBHOOK_SECRET?: string
+  GROBLE_WEBHOOK_SECRET_PREVIOUS?: string
   APP_DOMAIN: string
   ADMIN_DOMAIN: string
   SAAS_DOMAIN?: string

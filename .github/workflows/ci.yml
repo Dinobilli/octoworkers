@@ -19,6 +19,7 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm audit --prod --audit-level high
       - run: pnpm check
       - name: Verify D1 migrations (local)
         run: pnpm --filter @octoworkers/worker db:migrate:local

@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { z } from 'zod'
 import { zValidator } from '@hono/zod-validator'
 import type { AppBindings } from '../../com/bindings'
+import { getAdminIdentity } from '../../com/admin-identity'
 import * as repo from './repository'
 
 const app = new Hono<{ Bindings: AppBindings }>()
@@ -45,9 +46,35 @@ app.get('/:id', async (c) => {
   })
 })
 
+app.use('*', async (c, next) => {
+  if (c.req.method === 'GET') { await next(); return }
+  const actor = await getAdminIdentity(c)
+  if (!actor) return c.json({ message: 'Authentication required' }, 401)
+  let desiredRole: string | undefined
+  if (['POST', 'PUT'].includes(c.req.method) && !c.req.path.endsWith('/toggle')) {
+    try { desiredRole = (await c.req.json()).role } catch { return c.json({ message: 'Invalid JSON' }, 400) }
+  }
+  const rawId = c.req.path.split('/').filter(Boolean).filter(p => p !== 'toggle').at(-1)
+  const target = rawId && /^\d+$/.test(rawId) ? await repo.getUserById(c.env.DB, Number(rawId)) : null
+  if (c.req.method !== 'POST' && !target) return c.json({ message: 'User not found' }, 404)
+  if (actor.role !== 'super_admin' && (['super_admin', 'admin'].includes(desiredRole ?? '') || ['super_admin', 'admin'].includes(target?.role ?? ''))) {
+    return c.json({ message: 'Only an owner can manage administrators' }, 403)
+  }
+  if (target?.id === actor.id && (c.req.method === 'DELETE' || c.req.path.endsWith('/toggle'))) {
+    return c.json({ message: 'Cannot disable or delete your own account' }, 409)
+  }
+  await next()
+})
+
+app.onError((error, c) => {
+  if (String(error).includes('last_active_owner')) return c.json({ message: 'At least one active owner is required' }, 409)
+  if (String(error).includes('UNIQUE')) return c.json({ message: 'User already exists' }, 409)
+  return c.json({ message: 'User update failed' }, 500)
+})
+
 app.post('/', zValidator('json', userSchema), async (c) => {
   const { email, name, role } = c.req.valid('json')
-  await repo.createUser(c.env.DB, email, name, role)
+  await repo.createUser(c.env.DB, email.toLowerCase(), name, role)
   return c.json({ ok: true }, 201)
 })
 

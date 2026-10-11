@@ -253,6 +253,7 @@ function createTestEnv() {
     },
     APP_DOMAIN: 'example.com',
     ADMIN_DOMAIN: 'admin.example.com',
+    ENV_NAME: 'test',
     ADMIN_ACCESS_MODE: 'off',
   }
 }

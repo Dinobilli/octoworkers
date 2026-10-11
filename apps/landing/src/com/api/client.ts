@@ -8,8 +8,8 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
   })
 
   if (!response.ok) {
-    const message = await response.text()
-    throw new Error(message || 'Request failed')
+    const payload = await response.json().catch(() => null) as { message?: string } | null
+    throw new Error(payload?.message || '요청을 처리하지 못했습니다.')
   }
 
   return response.json() as Promise<T>

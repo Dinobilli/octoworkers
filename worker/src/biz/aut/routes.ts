@@ -2,12 +2,13 @@ import { zValidator } from '@hono/zod-validator'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import type { AppBindings } from '../../com/bindings'
+import { getAdminIdentity } from '../../com/admin-identity'
+import { getUserByEmail, updateLastLogin } from '../usr/repository'
 import { jsonError } from '../../com/http'
 import {
   clearAdminSession,
   issueAdminSession,
   loginConfigured,
-  readAdminSession,
   validateCredentials,
   githubConfigured,
   buildGithubAuthUrl,
@@ -25,8 +26,10 @@ const loginSchema = z.object({
 
 export const authRoutes = new Hono<{ Bindings: AppBindings }>()
 
+authRoutes.get('/providers', (c) => c.json({ password: loginConfigured(c.env), github: githubConfigured(c.env) }))
+
 authRoutes.get('/me', async (c) => {
-  const session = await readAdminSession(c)
+  const session = await getAdminIdentity(c)
   if (!session) return jsonError(c, 401, 'Not authenticated')
   return c.json(session)
 })
@@ -42,12 +45,15 @@ authRoutes.post('/login', zValidator('json', loginSchema), async (c) => {
     return jsonError(c, 401, 'Invalid email or password')
   }
 
+  const admin = await getUserByEmail(c.env.DB, payload.email.toLowerCase())
+  if (!admin || admin.is_active !== 1) return jsonError(c, 403, 'Provision an active admin account first')
+  await updateLastLogin(c.env.DB, payload.email.toLowerCase())
   await issueAdminSession(c, payload.email)
   return c.json({ ok: true, email: payload.email })
 })
 
 authRoutes.post('/logout', async (c) => {
-  clearAdminSession(c)
+  await clearAdminSession(c)
   return c.json({ ok: true })
 })
 
@@ -58,7 +64,7 @@ authRoutes.get('/github', async (c) => {
   }
   const url = new URL(c.req.url)
   const redirectUri = `${url.origin}/api/auth/github/callback`
-  const state = generateOAuthState(c)
+  const state = await generateOAuthState(c)
   return c.redirect(buildGithubAuthUrl(c.env, redirectUri, state))
 })
 
@@ -72,7 +78,7 @@ authRoutes.get('/github/callback', async (c) => {
 
   // C-1: state 검증
   const queryState = c.req.query('state')
-  if (!verifyOAuthState(c, queryState)) {
+  if (!(await verifyOAuthState(c, queryState))) {
     return jsonError(c, 403, 'Invalid OAuth state. Please try again.')
   }
 
@@ -87,7 +93,11 @@ authRoutes.get('/github/callback', async (c) => {
       return jsonError(c, 403, 'Access denied. This GitHub account is not authorized.')
     }
 
-    const email = ghUser.email ?? `${ghUser.login}@github.com`
+    const email = ghUser.email
+    if (!email) return jsonError(c, 403, 'Verified email required')
+    const admin = await getUserByEmail(c.env.DB, email)
+    if (!admin || admin.is_active !== 1) return jsonError(c, 403, 'Provision an active admin account first')
+    await updateLastLogin(c.env.DB, email, ghUser.login, ghUser.avatar_url)
     await issueAdminSession(c, email)
     return c.redirect('/')
   } catch {

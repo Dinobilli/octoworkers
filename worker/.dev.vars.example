@@ -1,11 +1,23 @@
-CLOUDFLARE_IMAGES_API_TOKEN=replace-me
-# Optional when using AI Gateway compatibility mode instead of the direct AI binding.
-AI_PROVIDER_API_KEY=replace-me
-ADMIN_LOGIN_PASSWORD=replace-me
-ADMIN_JWT_SECRET=replace-me-with-a-long-random-secret
-# Email (Resend)
-RESEND_API_KEY=replace-me
-# GitHub OAuth
-GITHUB_CLIENT_ID=replace-me
-GITHUB_CLIENT_SECRET=replace-me
-GITHUB_ALLOWED_USERS=replacee-me
+# Local only; never commit .dev.vars or .dev.vars.staging.
+ENV_NAME=development
+ADMIN_ACCESS_MODE=session
+ADMIN_LOGIN_EMAIL=owner@example.com
+ADMIN_ALLOWED_EMAILS=
+ADMIN_LOGIN_PASSWORD=replace-with-a-unique-password
+# Optional admin GitHub login; provision this account in admin_users first.
+GITHUB_CLIENT_ID=
+GITHUB_CLIENT_SECRET=
+GITHUB_ALLOWED_USERS=
+# Optional customer login (same-origin callback; email scope not required).
+ENABLE_KAKAO=false
+KAKAO_REST_API_KEY=
+KAKAO_CLIENT_SECRET=
+KAKAO_REDIRECT_URI=http://localhost:5173/api/members/kakao/callback
+# Optional commerce; register /api/webhooks/groble in Groble.
+ENABLE_GROBLE=false
+GROBLE_WEBHOOK_SECRET=
+GROBLE_WEBHOOK_SECRET_PREVIOUS=
+# Optional integrations
+CLOUDFLARE_IMAGES_API_TOKEN=
+AI_PROVIDER_API_KEY=
+RESEND_API_KEY=

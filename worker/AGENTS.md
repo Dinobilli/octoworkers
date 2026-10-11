@@ -28,4 +28,6 @@ DB(D1), ASSETS, AI(Workers AI), DOC_INDEX(Vectorize), OpsAgent(DO), APP_KV(KV), 
 
 ## 시크릿 (wrangler secret으로 관리)
 
-ADMIN_LOGIN_PASSWORD, ADMIN_JWT_SECRET, AI_PROVIDER_API_KEY, CLOUDFLARE_IMAGES_API_TOKEN
+ADMIN_LOGIN_PASSWORD, AI_PROVIDER_API_KEY, CLOUDFLARE_IMAGES_API_TOKEN
+
+새 회원/결제 설정, 보안 정책, CLI 및 staging 동작은 루트 `docs/05-boilerplate-upgrade.md`와 `AGENTS.md`의 1.1 변경 사항을 따른다.
