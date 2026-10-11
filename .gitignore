@@ -15,3 +15,7 @@ worker/public
 # Claude Code local files
 CLAUDE.local.md
 .claude/settings.local.json
+worker/.dev.vars.*
+!worker/.dev.vars.example
+cli/template
+*.tgz

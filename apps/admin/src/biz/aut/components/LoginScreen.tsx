@@ -1,38 +1,26 @@
-type LoginScreenProps = {
-  onLogin: (email: string, password: string) => Promise<void>
-}
-
-export function LoginScreen({ onLogin: _onLogin }: LoginScreenProps) {
-  return (
-    <main className="login-shell">
-      <section className="login-card">
-        <span>Admin Login</span>
-        <h1>옥토워커스 관리 콘솔</h1>
-        <p>GitHub 계정으로 로그인하세요. 허가된 사용자만 접근할 수 있습니다.</p>
-        <div className="form-grid">
-          <a
-            href="/api/auth/github"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-              padding: '12px 24px',
-              background: '#24292f',
-              color: '#fff',
-              borderRadius: '8px',
-              textDecoration: 'none',
-              fontSize: '16px',
-              fontWeight: 600,
-            }}
-          >
-            <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor">
-              <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
-            </svg>
-            Sign in with GitHub
-          </a>
-        </div>
-      </section>
-    </main>
-  )
+import { useEffect, useState } from 'react'
+import { apiFetch } from '../../../com/api/client'
+export function LoginScreen({ onLogin }: { onLogin: (email: string, password: string) => Promise<void> }) {
+  const [providers, setProviders] = useState<{ password: boolean; github: boolean } | null>(null)
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  useEffect(() => { apiFetch<{ password: boolean; github: boolean }>('/api/auth/providers').then(setProviders).catch(() => setError('로그인 설정을 불러오지 못했습니다.')) }, [])
+  async function submit(e: React.FormEvent) {
+    e.preventDefault(); setBusy(true); setError('')
+    try { await onLogin(email, password) } catch (e) { setError(e instanceof Error ? e.message : '로그인에 실패했습니다.') } finally { setBusy(false) }
+  }
+  return <main className="login-shell"><section className="login-card">
+    <span>Admin Login</span><h1>관리 콘솔</h1><p>등록된 관리자 계정으로 로그인하세요.</p>
+    {!providers && !error && <p>불러오는 중…</p>}
+    {providers?.github && <a href="/api/auth/github">GitHub으로 로그인</a>}
+    {providers?.password && <form className="form-grid" onSubmit={submit}>
+      <label>이메일<input autoComplete="username" type="email" value={email} onChange={e => setEmail(e.target.value)} required /></label>
+      <label>비밀번호<input autoComplete="current-password" type="password" value={password} onChange={e => setPassword(e.target.value)} required minLength={8} /></label>
+      <button disabled={busy} type="submit">{busy ? '로그인 중…' : '로그인'}</button>
+    </form>}
+    {providers && !providers.password && !providers.github && <p>관리자 로그인이 설정되지 않았습니다. 사이트 운영자에게 문의하세요.</p>}
+    {error && <p role="alert">{error}</p>}
+  </section></main>
 }

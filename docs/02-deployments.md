@@ -1,151 +1,30 @@
 # 개발 / 스테이징 / 운영 배포
 
-## 브랜치 전략
+Node.js 22.18 LTS 또는 24.11 이상 및 pnpm 9.15.0을 사용합니다. 신규 프로젝트는 [설정 가이드](05-boilerplate-upgrade.md)를 먼저 따릅니다.
 
-- `develop` -&gt; staging 자동 배포
-- `main` -&gt; production 자동 배포
+- `worker/wrangler.jsonc` 최상위: production
+- `env.staging`: 별도 이름, D1, KV, 변수 및 Cron
+- 런타임 시크릿은 환경별로 따로 설정합니다. staging은 wrangler 명령에 `--env staging`을 붙입니다.
+- AI/Agents 등 선택 바인딩도 환경별로 선언합니다. 기존 Durable Object migration 이력을 삭제하지 않습니다.
 
-## GitHub Actions
-
-포함된 워크플로:
-
-- [ci.yml](/Volumes/SAMSUNG/apps/projects/octoworkers/.github/workflows/ci.yml)
-- [deploy-staging.yml](/Volumes/SAMSUNG/apps/projects/octoworkers/.github/workflows/deploy-staging.yml)
-- [deploy-production.yml](/Volumes/SAMSUNG/apps/projects/octoworkers/.github/workflows/deploy-production.yml)
-
-## CI 동작
-
-`CI`는 다음을 수행합니다.
-
-1. `pnpm install`
-2. `pnpm check`
-3. `pnpm test`
-4. `pnpm build`
-
-추가로 실제 배포 전에는 다음 항목이 Cloudflare 계정에 준비되어 있어야 합니다.
-
-- D1
-- Images
-- KV
-- Vectorize
-- Agents용 Durable Object migration
-- 필요 시 R2
-
-## staging 배포
-
-트리거:
-
-- `develop` 브랜치 push
-
-실행 순서:
-
-1. `pnpm build`
-2. `wrangler d1 migrations apply DB --remote --env staging`
-3. `wrangler deploy --env staging`
-
-로컬 수동 실행:
-
-```bash
+```sh
+pnpm config:check --env staging
 pnpm deploy:staging
-```
-
-staging 검증 권장:
-
-1. `pnpm dev:remote`
-2. `/api/admin/ext/ai/workers` 확인
-3. `/api/admin/vec/reindex` 실행
-4. admin에서 `Ops Agent` 패널 smoke test
-
-## production 배포
-
-트리거:
-
-- `main` 브랜치 push
-
-실행 순서:
-
-1. `pnpm build`
-2. `wrangler d1 migrations apply DB --remote`
-3. `wrangler deploy`
-
-로컬 수동 실행:
-
-```bash
 pnpm deploy:prod
 ```
 
-## GitHub Secrets
+배포 스크립트는 설정 검사 → 프론트 빌드 → 대상 DB 마이그레이션 → Worker 배포 순서로 실행합니다. 미설정 플레이스홀더, off 인증, 공유 D1/KV를 발견하면 중단합니다. 실제 secret 존재 여부는 이 검사만으로 확인할 수 없으므로 별도 설정해야 합니다.
 
-필수:
+GitHub Actions:
+- PR/main: 타입, 실제 SQLite 통합 테스트, CLI 패키지 테스트, 로컬 D1 마이그레이션 및 빌드
+- develop: staging Environment로 배포
+- main: production Environment로 배포
+- 배포별 concurrency group으로 겹치는 배포를 방지합니다.
 
-- `CLOUDFLARE_API_TOKEN`
-- `CLOUDFLARE_ACCOUNT_ID`
+각 GitHub Environment에 `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`를 설정합니다. 보호 브랜치/승인 규칙은 저장소 설정에서 정합니다. 카카오·그로블·관리자 비밀번호는 GitHub 토큰과 별개인 Worker runtime secrets입니다.
 
-주의:
+도메인 미정이면 workers.dev 임시 주소를 `APP_DOMAIN`과 OAuth Redirect URI에 사용하고, `/admin/`으로 콘솔에 접근할 수 있습니다. 커스텀 도메인이 생기면 `routes: [{pattern: "example.com", custom_domain: true}]`를 원하는 환경에 추가하고 공급자 Redirect URI도 바꿉니다. OAuth 시작과 콜백은 같은 origin이어야 합니다.
 
-- Worker runtime secret과 GitHub Actions secret은 다릅니다.
-- `ADMIN_LOGIN_PASSWORD`, `ADMIN_JWT_SECRET`, `AI_PROVIDER_API_KEY`, `CLOUDFLARE_IMAGES_API_TOKEN`은 Worker secret으로 별도 주입해야 합니다.
+빌드 결과는 `worker/public/landing` 및 `worker/public/admin`입니다. `pnpm dev`는 5173/5174의 Vite 화면과 8787의 Worker를 실행합니다. 그로블 웹훅은 외부 HTTPS 주소가 필요하므로 실제 결제 검증은 staging에서 수행합니다.
 
-## 실제 운영 순서
-
-권장 순서:
-
-1. 로컬 개발
-2. `develop` push
-3. staging 검수
-4. `main` merge/push
-5. production 자동 배포
-
-## 도메인 라우팅 활성화
-
-[wrangler.jsonc](/Volumes/SAMSUNG/apps/projects/octoworkers/worker/wrangler.jsonc) 에 들어 있는 `routes` 예시는 주석 상태입니다.
-
-실제 도메인 확정 후:
-
-1. 주석 해제
-2. 실제 도메인으로 변경
-3. 다시 deploy
-
-예:
-
-```jsonc
-"routes": [
-  {
-    "pattern": "example.com",
-    "custom_domain": true
-  },
-  {
-    "pattern": "admin.example.com",
-    "custom_domain": true
-  }
-]
-```
-
-## 자산 배포 방식
-
-빌드 결과:
-
-- landing -&gt; `worker/public/landing`
-- admin -&gt; `worker/public/admin`
-
-Worker는 호스트명을 보고 해당 자산을 반환합니다.
-
-## 원격 개발
-
-Workers AI, Vectorize, Agents는 원격 Cloudflare 리소스를 바라보는 편이 더 정확합니다.
-
-```bash
-pnpm dev:remote
-```
-
-이 모드에서는 Worker만 remote dev로 띄우고, landing/admin Vite 앱은 로컬에서 유지합니다.
-
-## 롤백 팁
-
-이 저장소에는 별도 롤백 스크립트는 넣지 않았습니다.
-
-운영에서 권장하는 롤백 전략:
-
-- `main`에서 직전 안정 커밋을 다시 push
-- 필요 시 해당 커밋 기준으로 redeploy
-- 마이그레이션은 additive 방식 유지
+기존 서비스 업그레이드는 백업 → staging 마이그레이션/검증 → 운영 마이그레이션 → 코드 배포 순서로 진행합니다. 새 테이블/트리거를 포함한 DB 변경은 Worker 코드 롤백만으로 되돌아가지 않습니다.

@@ -1,4 +1,7 @@
-import { useState } from 'react'
+import type { FeatureFlags } from '@octoworkers/com'
+import { apiFetch } from './com/api/client'
+import { CommercePanel } from './biz/pay/components/CommercePanel'
+import { useEffect, useState } from 'react'
 import { LoginScreen } from './biz/aut/components/LoginScreen'
 import { useAuth } from './biz/aut/hooks/useAuth'
 import { OverviewPanel } from './biz/dsh/components/OverviewPanel'
@@ -25,6 +28,7 @@ type NavItem = {
 const NAV_ITEMS: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', group: 'Overview', icon: '/' },
   { id: 'system', label: 'System', group: 'Overview', icon: '#' },
+  { id: 'commerce', label: '결제 · 상품', group: 'Management', icon: '$' },
   { id: 'users', label: 'Users', group: 'Management', icon: '@' },
   { id: 'leads', label: 'Leads', group: 'Management', icon: '>' },
   { id: 'media', label: 'Media', group: 'Management', icon: '*' },
@@ -47,15 +51,19 @@ function groupItems(items: NavItem[]): Map<string, NavItem[]> {
   return groups
 }
 
-function AuthenticatedAdmin({ email, logout }: { email: string; logout: () => Promise<void> }) {
+function AuthenticatedAdmin({ email, role, logout }: { email: string; role: string; logout: () => Promise<void> }) {
   const { leads } = useLeads()
   const [activeTab, setActiveTab] = useState('dashboard')
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
-  const groups = groupItems(NAV_ITEMS)
+  const [flags, setFlags] = useState<FeatureFlags | null>(null)
+  useEffect(() => { apiFetch<FeatureFlags>('/api/public/features').then(setFlags).catch(() => {}) }, [])
+  const isAdmin = ['admin', 'super_admin'].includes(role)
+  const groups = groupItems(NAV_ITEMS.filter(item => (item.id !== 'extensions' || flags?.examples) && (item.id !== 'commerce' || (flags?.groble && isAdmin)) && (item.id !== 'users' || isAdmin)))
 
   function renderPanel() {
     switch (activeTab) {
+      case 'commerce': return <CommercePanel />
       case 'dashboard': return <OverviewPanel />
       case 'system': return <SystemPanel />
       case 'users': return <UserPanel />
@@ -137,5 +145,5 @@ export function App() {
   if (loading) return <main className="admin-loading">Checking admin session...</main>
   if (!user) return <LoginScreen onLogin={login} />
 
-  return <AuthenticatedAdmin email={user.email} logout={logout} />
+  return <AuthenticatedAdmin email={user.email} role={user.role} logout={logout} />
 }

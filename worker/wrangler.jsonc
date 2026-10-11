@@ -3,16 +3,14 @@
   "name": "octoworkers",
   "main": "src/index.ts",
   "compatibility_date": "2026-04-07",
-  "compatibility_flags": ["nodejs_compat"],
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
   "assets": {
     "directory": "./public",
     "binding": "ASSETS",
     "html_handling": "none",
     "not_found_handling": "none"
-  },
-  "ai": {
-    "binding": "AI",
-    "remote": true
   },
   "kv_namespaces": [
     {
@@ -20,42 +18,13 @@
       "id": "REPLACE_WITH_KV_NAMESPACE_ID"
     }
   ],
-  // Vectorize: wrangler vectorize create octoworkers-doc-index --dimensions 384 --metric cosine
-  // "vectorize": [
-  //   {
-  //     "binding": "DOC_INDEX",
-  //     "index_name": "octoworkers-doc-index",
-  //     "remote": true
-  //   }
-  // ],
-  "durable_objects": {
-    "bindings": [
-      {
-        "name": "OpsAgent",
-        "class_name": "OpsAgent"
-      }
-    ]
-  },
-  "migrations": [
-    {
-      "tag": "v1",
-      "new_sqlite_classes": ["OpsAgent"]
-    }
-  ],
-  // R2: wrangler r2 bucket create octoworkers-media
-  // "r2_buckets": [
-  //   {
-  //     "binding": "MEDIA_R2",
-  //     "bucket_name": "octoworkers-media"
-  //   }
-  // ],
   "vars": {
     "ENV_NAME": "production",
     "APP_DOMAIN": "REPLACE_WITH_DOMAIN",
     "ADMIN_DOMAIN": "admin.REPLACE_WITH_DOMAIN",
     "SAAS_DOMAIN": "app.REPLACE_WITH_DOMAIN",
-    "ADMIN_ACCESS_MODE": "hybrid",
-    "ADMIN_ALLOWED_EMAILS": "REPLACE_WITH_ADMIN_EMAIL",
+    "ADMIN_ACCESS_MODE": "session",
+    "ADMIN_ALLOWED_EMAILS": "",
     "ADMIN_LOGIN_EMAIL": "REPLACE_WITH_ADMIN_EMAIL",
     "CLOUDFLARE_ACCOUNT_ID": "REPLACE_WITH_ACCOUNT_ID",
     "CLOUDFLARE_IMAGES_DELIVERY_HASH": "",
@@ -65,8 +34,17 @@
     "AI_MODEL": "@cf/meta/llama-3.1-8b-instruct",
     "AI_TEXT_MODEL": "@cf/meta/llama-3.1-8b-instruct-fast",
     "AI_EMBED_MODEL": "@cf/baai/bge-small-en-v1.5",
-    "GITHUB_ALLOWED_USERS": "REPLACE_WITH_GITHUB_USERNAME",
-    "GITHUB_CLIENT_ID": "REPLACE_WITH_GITHUB_CLIENT_ID"
+    "GITHUB_ALLOWED_USERS": "",
+    "GITHUB_CLIENT_ID": "",
+    "CF_ACCESS_TEAM_DOMAIN": "",
+    "CF_ACCESS_AUD": "",
+    "ENABLE_AI": "false",
+    "ENABLE_AGENTS": "false",
+    "ENABLE_VECTOR": "false",
+    "ENABLE_EXAMPLES": "false",
+    "ENABLE_KAKAO": "false",
+    "ENABLE_GROBLE": "false",
+    "KAKAO_REDIRECT_URI": ""
   },
   "d1_databases": [
     {
@@ -77,22 +55,64 @@
     }
   ],
   "workers_dev": true,
-  // 커스텀 도메인 설정 후 주석 해제
-  // "routes": [
-  //   {
-  //     "pattern": "REPLACE_WITH_DOMAIN",
-  //     "custom_domain": true
-  //   },
-  //   {
-  //     "pattern": "admin.REPLACE_WITH_DOMAIN",
-  //     "custom_domain": true
-  //   },
-  //   {
-  //     "pattern": "app.REPLACE_WITH_DOMAIN",
-  //     "custom_domain": true
-  //   }
-  // ],
   "observability": {
     "enabled": true
+  },
+  "triggers": {
+    "crons": [
+      "17 * * * *"
+    ]
+  },
+  "env": {
+    "staging": {
+      "name": "octoworkers-staging",
+      "vars": {
+        "ENV_NAME": "staging",
+        "APP_DOMAIN": "staging.REPLACE_WITH_DOMAIN",
+        "ADMIN_DOMAIN": "admin-staging.REPLACE_WITH_DOMAIN",
+        "SAAS_DOMAIN": "app-staging.REPLACE_WITH_DOMAIN",
+        "ADMIN_ACCESS_MODE": "session",
+        "ADMIN_ALLOWED_EMAILS": "",
+        "ADMIN_LOGIN_EMAIL": "REPLACE_WITH_ADMIN_EMAIL",
+        "CLOUDFLARE_ACCOUNT_ID": "REPLACE_WITH_ACCOUNT_ID",
+        "CLOUDFLARE_IMAGES_DELIVERY_HASH": "",
+        "AI_GATEWAY_ACCOUNT_ID": "REPLACE_WITH_ACCOUNT_ID",
+        "AI_GATEWAY_ID": "default",
+        "AI_PROVIDER": "workers-ai",
+        "AI_MODEL": "@cf/meta/llama-3.1-8b-instruct",
+        "AI_TEXT_MODEL": "@cf/meta/llama-3.1-8b-instruct-fast",
+        "AI_EMBED_MODEL": "@cf/baai/bge-small-en-v1.5",
+        "GITHUB_ALLOWED_USERS": "",
+        "GITHUB_CLIENT_ID": "",
+        "CF_ACCESS_TEAM_DOMAIN": "",
+        "CF_ACCESS_AUD": "",
+        "ENABLE_AI": "false",
+        "ENABLE_AGENTS": "false",
+        "ENABLE_VECTOR": "false",
+        "ENABLE_EXAMPLES": "false",
+        "ENABLE_KAKAO": "false",
+        "ENABLE_GROBLE": "false",
+        "KAKAO_REDIRECT_URI": ""
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "octoworkers-staging",
+          "database_id": "REPLACE_WITH_STAGING_D1_DATABASE_ID",
+          "migrations_dir": "./migrations"
+        }
+      ],
+      "kv_namespaces": [
+        {
+          "binding": "APP_KV",
+          "id": "REPLACE_WITH_STAGING_KV_NAMESPACE_ID"
+        }
+      ],
+      "triggers": {
+        "crons": [
+          "17 * * * *"
+        ]
+      }
+    }
   }
 }

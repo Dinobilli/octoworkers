@@ -3,6 +3,7 @@ import { apiFetch } from '../../../com/api/client'
 
 type SessionUser = {
   email: string
+  role: string
 }
 
 export function useAuth() {

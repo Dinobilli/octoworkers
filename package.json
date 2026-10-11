@@ -1,6 +1,6 @@
 {
   "name": "octoworkers",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "packageManager": "pnpm@9.15.0",
   "scripts": {
@@ -12,8 +12,22 @@
     "build:landing": "pnpm --filter @octoworkers/landing build:cloudflare",
     "build:admin": "pnpm --filter @octoworkers/admin build:cloudflare",
     "check": "pnpm --recursive run check",
-    "test": "pnpm --filter @octoworkers/worker test",
-    "deploy:staging": "pnpm build && pnpm --filter @octoworkers/worker db:migrate:remote:staging && pnpm --filter @octoworkers/worker deploy:staging",
-    "deploy:prod": "pnpm build && pnpm --filter @octoworkers/worker db:migrate:remote && pnpm --filter @octoworkers/worker deploy"
+    "test": "pnpm --filter @octoworkers/worker test && pnpm test:cli",
+    "deploy:staging": "node scripts/check-config.mjs --env staging && pnpm build && pnpm --filter @octoworkers/worker db:migrate:remote:staging && pnpm --filter @octoworkers/worker deploy:staging",
+    "deploy:prod": "node scripts/check-config.mjs && pnpm build && pnpm --filter @octoworkers/worker db:migrate:remote && pnpm --filter @octoworkers/worker deploy",
+    "admin:bootstrap": "node scripts/bootstrap-admin.mjs",
+    "config:check": "node scripts/check-config.mjs",
+    "build:cli": "node cli/build.js",
+    "test:cli": "node --test cli/test/*.test.mjs"
+  },
+  "engines": {
+    "node": "^22.18.0 || >=24.11.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "@modelcontextprotocol/sdk": "^1.31.0",
+      "@modelcontextprotocol/client": "^2.2.0",
+      "@ai-sdk/provider-utils@4": "^4.0.33"
+    }
   }
 }

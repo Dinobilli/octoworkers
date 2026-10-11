@@ -2,6 +2,22 @@
 
 > 이 프로젝트는 Cloudflare Workers 기반 SaaS 보일러플레이트다. 복사해서 새 프로젝트를 시작하는 용도로 설계되었다. 이 문서는 Codex, Claude Code 등 에이전트가 이 보일러플레이트를 올바르게 이해하고 커스터마이징을 도울 수 있도록 작성되었다.
 
+## 1.1 변경 사항 (기존 설명보다 우선)
+
+- 신규 프로젝트/마이그레이션은 `docs/05-boilerplate-upgrade.md`를 기준으로 한다.
+- 그로블 공식 결제·웹훅·MCP 출처와 프로젝트 연결 절차는 `docs/13-groble-integration.md`를 확인한다. 공급자 규격 변경 시 코드·테스트와 함께 갱신한다.
+- 카카오 일반 회원은 `biz/mbr`, 그로블 결제는 `biz/pay`. `ENABLE_KAKAO`, `ENABLE_GROBLE`로 선택한다. 공급자 키·실상품은 템플릿에 넣지 않는다.
+- 관리자와 회원의 DB/세션을 분리한다. 회원을 관리자에 자동 연결하지 않는다.
+- 관리자 세션은 DB에 해시를 저장하는 opaque token이다. JWT 세션/ADMIN_JWT_SECRET은 사용하지 않는다.
+- Access JWT 서명·issuer·audience를 검증하고 같은 DB role을 적용한다. 이메일 헤더만 신뢰하지 않는다.
+- 첫 최고 관리자는 `pnpm admin:bootstrap --email ...`로 명시적으로 만든다. localhost도 기본적으로 인증한다.
+- `off` 우회는 ENV_NAME development/test + loopback에서만 가능하다. 인증/결제 테스트는 production 모드와 실제 SQLite 전체 마이그레이션으로 수행한다.
+- API·DB 트리거가 마지막 최고 관리자와 역할 변경을 보호한다.
+- 결제 redirect는 결제 증거가 아니다. 서명된 이벤트 원장을 통해 상태를 계산한다. 사업별 권한 정책은 pay/service.ts에서 확장한다.
+- CLI는 source와 npm tarball 양쪽을 검증한다. subprocess는 shell 없이 인자 배열을 사용하고 source secrets를 복사하지 않는다.
+- wrangler 최상위 production과 env.staging 바인딩을 독립 관리한다. 기존 DO migration 이력은 유지한다.
+- 이 문서와 CLAUDE.md를 함께 갱신하고 daily에 영향분석/검증을 기록한다.
+
 ## 프로젝트 구조
 
 - `/` — 루트 monorepo (pnpm workspace)
@@ -48,7 +64,6 @@ cp worker/.dev.vars.example worker/.dev.vars
 
 ```bash
 wrangler secret put ADMIN_LOGIN_PASSWORD
-wrangler secret put ADMIN_JWT_SECRET
 wrangler secret put AI_PROVIDER_API_KEY          # 선택
 wrangler secret put CLOUDFLARE_IMAGES_API_TOKEN  # 선택
 ```
@@ -168,8 +183,8 @@ Browser
 
 - `ADMIN_ACCESS_MODE`: `cloudflare-access` | `session` | `hybrid` | `off`
 - `enforceAdminAccess` 미들웨어가 `/api/admin/*`, `/agents/*` 보호
-- Cloudflare Access 헤더 + JWT 쿠키 세션 병행 가능
-- localhost는 항상 허용 (개발용)
+- 검증된 Cloudflare Access JWT + DB 쿠키 세션 병행 가능
+- localhost도 기본 인증; 명시적인 개발/테스트 off 모드만 우회 가능
 
 ### Cloudflare 바인딩
 
@@ -323,7 +338,7 @@ octoworkers/
 - Vitest (`worker/test/app.test.ts`)
 - `app.request(url, init, mockEnv)` 패턴
 - `createTestEnv()` / `createAiVectorEnv()` mock 헬퍼
-- `ADMIN_ACCESS_MODE: 'off'`로 인증 우회
+- 기존 mock 기능 테스트만 ENV_NAME=test + loopback + ADMIN_ACCESS_MODE=off; 인증 테스트는 production 설정
 - 바인딩(D1, KV, AI, Vectorize)은 mock 객체
 - `agents`/`hono-agents`는 `vi.mock()`
 - 새 라우트 추가 시 테스트 필수

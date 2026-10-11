@@ -231,3 +231,11 @@ export type SystemStats = {
   recentAccessLogs: AccessLog[]
   recentApiLogs: ApiLog[]
 }
+
+export type MemberProfile = { id: string; name: string; email: string | null }
+export type CommerceProduct = { id: string; name: string; amount: number; currency: 'KRW'; payment_type: 'ONE_TIME' | 'SUBSCRIPTION' }
+export type OrderStatus = 'pending' | 'paid' | 'partially_refunded' | 'refunded' | 'cancel_requested' | 'active' | 'past_due' | 'terminated' | 'review_required'
+export type MemberOrder = { id: string; productId: string; name: string; amount: number; status: OrderStatus; hasAccess: boolean; createdAt: string }
+export type FeatureFlags = { kakao: boolean; groble: boolean; ai: boolean; agents: boolean; vector: boolean; examples: boolean }
+export type AdminProduct = CommerceProduct & { groble_content_id: string; checkout_url: string; is_active: number }
+export type PaymentEventSummary = { id: string; type: string; seller_reference: string | null; merchant_uid: string | null; content_id: string; amount: number | null; occurred_at: number; received_at: string }

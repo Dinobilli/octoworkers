@@ -1,5 +1,6 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import { AccountPage } from './biz/mbr/components/AccountPage'
 import { App } from './App'
 import { PageView } from './biz/mkt/components/PageView'
 import { PageListView } from './biz/mkt/components/PageListView'
@@ -10,6 +11,8 @@ function Router() {
   const path = window.location.pathname
     .replace(/^\/landing/, '')
     .replace(/\/$/, '') || '/'
+
+  if (path === '/account') return <AccountPage />
 
   // /pages/:slug 경로
   if (path.startsWith('/pages/')) {
