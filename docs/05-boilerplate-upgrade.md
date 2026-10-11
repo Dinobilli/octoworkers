@@ -51,6 +51,8 @@ OAuth state는 브라우저 쿠키와 일회용 DB 레코드를 함께 검증합
 
 ## 그로블 결제
 
+MCP 연결 정보, 공식 문서 모음, 설정·검증·문제 해결은 [그로블 결제 · MCP 연결 가이드](13-groble-integration.md)를 참고하세요.
+
 1. 그로블에서 상품/결제창을 만들고 승인된 결제 링크를 준비합니다. MCP를 사용한다면 상품 초안·판매 설정을 돕는 운영 도구로 사용합니다. **런타임 결제 서버가 MCP에 의존하지 않습니다.**
 2. `ENABLE_GROBLE=true`와 `ENABLE_KAKAO=true`를 설정합니다.
 3. 그로블에 `https://example.com/api/webhooks/groble`을 등록하고 8개 결제/구독 이벤트를 선택합니다. 발급된 키는 `GROBLE_WEBHOOK_SECRET`으로 설정합니다.
@@ -59,6 +61,7 @@ OAuth state는 브라우저 쿠키와 일회용 DB 레코드를 함께 검증합
 6. 회원 로그인 → 구매 → 실제 결제 → 구매 내역 반영 → 환불을 staging에서 확인한 뒤 운영합니다.
 
 공식 문서:
+- https://www.groble.im/help/guides/mcp
 - https://www.groble.im/help/guides/payment-module
 - https://www.groble.im/help/guides/webhook
 - https://www.groble.im/help/guides/webhook-events

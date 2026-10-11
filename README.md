@@ -126,6 +126,8 @@ pnpm deploy:prod
 
 ## 문서
 
+- [그로블 결제 · MCP 연결 가이드](./docs/13-groble-integration.md)
+
 - [빠른 시작](./docs/00-quick-start.md)
 - [Cloudflare 초기 설정](./docs/01-cloudflare-setup.md)
 - [개발/스테이징/운영 배포](./docs/02-deployments.md)

@@ -39,3 +39,10 @@ Implementation and validation results are recorded below when complete.
 ## Post-change impact / remaining integration
 
 Existing installations must migrate D1 and log in again. Retain existing Durable Object migration history when upgrading an already-deployed service; new template defaults omit optional bindings. Product prices are fixed in the reference policy; discounts and partial refunds require business-specific rules documented in the guide. External Kakao login and real Groble charge/refund require each new project's app keys, approved product, and webhook secret and were not exercised against live provider accounts. No ebook delivery or arbitrary paid-content endpoint is implied by an order's status; protected resources must enforce the server policy.
+
+## Follow-up: Groble documentation before merge
+
+- Before-change impact: documentation only; no changes to runtime, API, UI, schema, secrets, or deployment.
+- Added a source-linked Groble payment/MCP guide with provider-neutral OAuth connection details, project setup, endpoint/code map, verification and troubleshooting. Linked from README, upgrade guide and synchronized agent instructions.
+- Verified the official MCP page with the search engine fallback after web fetch timed out, compared against the previously supplied guide, and checked local endpoint/event/secret names against implementation.
+- Post-change: documentation link targets, agent-file parity and git diff whitespace checked. Runtime tests are unchanged; no live provider connection or payment attempted.

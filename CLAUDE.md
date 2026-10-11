@@ -5,6 +5,7 @@
 ## 1.1 변경 사항 (기존 설명보다 우선)
 
 - 신규 프로젝트/마이그레이션은 `docs/05-boilerplate-upgrade.md`를 기준으로 한다.
+- 그로블 공식 결제·웹훅·MCP 출처와 프로젝트 연결 절차는 `docs/13-groble-integration.md`를 확인한다. 공급자 규격 변경 시 코드·테스트와 함께 갱신한다.
 - 카카오 일반 회원은 `biz/mbr`, 그로블 결제는 `biz/pay`. `ENABLE_KAKAO`, `ENABLE_GROBLE`로 선택한다. 공급자 키·실상품은 템플릿에 넣지 않는다.
 - 관리자와 회원의 DB/세션을 분리한다. 회원을 관리자에 자동 연결하지 않는다.
 - 관리자 세션은 DB에 해시를 저장하는 opaque token이다. JWT 세션/ADMIN_JWT_SECRET은 사용하지 않는다.
